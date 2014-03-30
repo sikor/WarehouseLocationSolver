@@ -56,6 +56,15 @@ class Problem:
         return sorted(self.clients.values(), key=lambda c: c.dem, reverse=True)
 
 
+class PartialResult:
+    def __init__(self, total_cost=0, is_feasible=True):
+        self.total_cost = total_cost
+        self.is_feasible = is_feasible
+
+    def __repr__(self):
+        return "cost=" + str(self.total_cost) + ", is_feasible=" + str(self.is_feasible)
+
+
 class PartialMatch:
     def __init__(self):
         self.client_to_warehouse = dict()
@@ -78,7 +87,13 @@ class PartialMatch:
         return key
 
     def get_cost(self):
-        pass
+        total_cost = 0
+        is_feasible = all(map(lambda cap: cap >= 0, self.free_cap.values()))
+        for (client, warehouse) in self.client_to_warehouse.items():
+            total_cost += client.cost[warehouse.wid]
+        for warehouse in self.warehouse_to_clients.keys():
+            total_cost += warehouse.setup
+        return PartialResult(total_cost, is_feasible)
 
     def __repr__(self):
         return str(self.client_to_warehouse)

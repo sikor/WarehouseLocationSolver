@@ -13,3 +13,4 @@ if __name__ == '__main__':
 
     solution = any_fit(data)
     print(solution)
+    print(solution.get_cost())
