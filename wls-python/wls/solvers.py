@@ -1,6 +1,14 @@
 __author__ = 'pawsi_000'
 
-from wls.model import *
+import random
+
+import numpy
+from deap import base
+from deap import creator
+from deap import tools
+from deap import algorithms
+
+from wls.genetic import *
 
 
 def any_fit(problem: Problem) -> PartialMatch:
@@ -16,3 +24,34 @@ def any_fit(problem: Problem) -> PartialMatch:
         match.assoc(client, current_warehouse)
 
     return match
+
+
+def genetic(problem: Problem) -> PartialMatch:
+    creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
+    creator.create("Individual", list, fitness=creator.FitnessMax)
+
+    toolbox = base.Toolbox()
+    toolbox.register("rand_warehouse", random.randint, 0, len(problem.warehouses) - 1)
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.rand_warehouse, len(problem.clients))
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+    genetic_functions = ClientOrientedGenome(problem)
+
+    toolbox.register("evaluate", genetic_functions.eval_individual)
+    toolbox.register("mate", genetic_functions.crossover)
+    toolbox.register("mutate", genetic_functions.mutate)
+    toolbox.register("select", tools.selBest)
+
+    pop = toolbox.population(n=1000)
+    hof = tools.HallOfFame(1)
+    stats = tools.Statistics(lambda ind: ind.fitness.values)
+    stats.register("avg", numpy.mean)
+    stats.register("std", numpy.std)
+    stats.register("min", numpy.min)
+    stats.register("max", numpy.max)
+
+    pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=1000, stats=stats, halloffame=hof,
+                                   verbose=True)
+
+
+

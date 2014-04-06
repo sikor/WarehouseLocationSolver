@@ -57,9 +57,10 @@ class Problem:
 
 
 class PartialResult:
-    def __init__(self, total_cost=0, is_feasible=True):
+    def __init__(self, total_cost=0, is_feasible=True, overload=0):
         self.total_cost = total_cost
         self.is_feasible = is_feasible
+        self.overload = overload
 
     def __repr__(self):
         return "cost=" + str(self.total_cost) + ", is_feasible=" + str(self.is_feasible)
@@ -71,6 +72,7 @@ class PartialMatch:
         self.warehouse_to_clients = dict()
         self.free_cap = dict()
 
+    #TODO: remove old assoc before new.
     def assoc(self, client: Client, warehouse: Warehouse):
         self.client_to_warehouse[client] = warehouse
         if warehouse in self.warehouse_to_clients:
@@ -88,14 +90,17 @@ class PartialMatch:
 
     def get_cost(self):
         total_cost = 0
-        is_feasible = all(map(lambda cap: cap >= 0, self.free_cap.values()))
+        overload = sum(map(lambda cap: -cap if cap < 0 else 0, self.free_cap.values()))
+        is_feasible = overload <= 0
+
         for (client, warehouse) in self.client_to_warehouse.items():
             total_cost += client.cost[warehouse.wid]
         for warehouse in self.warehouse_to_clients.keys():
             total_cost += warehouse.setup
-        return PartialResult(total_cost, is_feasible)
+        return PartialResult(total_cost, is_feasible, overload)
 
     def __repr__(self):
         return str(self.client_to_warehouse)
+
 
 

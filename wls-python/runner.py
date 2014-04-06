@@ -6,11 +6,9 @@ from wls.io import *
 from wls.solvers import *
 
 if __name__ == '__main__':
-    data = read_data(fileinput.input())
-    print(data)
-    print(data.clients[0])
-    print(data.warehouses[0])
-
-    solution = any_fit(data)
-    print(solution)
-    print(solution.get_cost())
+    problem = read_data(fileinput.input())
+    print(problem)
+    print(problem.clients[0])
+    print(problem.warehouses[0])
+    print(any_fit(problem).get_cost().total_cost)
+    genetic(problem)
