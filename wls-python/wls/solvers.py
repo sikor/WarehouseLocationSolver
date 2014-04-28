@@ -40,9 +40,11 @@ def genetic(problem: Problem) -> PartialMatch:
     toolbox.register("evaluate", genetic_functions.eval_individual)
     toolbox.register("mate", genetic_functions.crossover)
     toolbox.register("mutate", genetic_functions.mutate)
-    toolbox.register("select", tools.selBest)
+    toolbox.register("select", tools.   selBest)
 
-    pop = toolbox.population(n=1000)
+    population = 100
+
+    pop = toolbox.population(n=population)
     hof = tools.HallOfFame(1)
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", numpy.mean)
@@ -50,7 +52,7 @@ def genetic(problem: Problem) -> PartialMatch:
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
 
-    pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=1000, stats=stats, halloffame=hof,
+    pop, log = algorithms.eaMuCommaLambda(pop, toolbox, mu=int(population*0.25), lambda_=int(population*0.5), cxpb=0.5, mutpb=0.2, ngen=1000, stats=stats, halloffame=hof,
                                    verbose=True)
 
 
