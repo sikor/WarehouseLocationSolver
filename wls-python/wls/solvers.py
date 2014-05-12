@@ -2,6 +2,7 @@ __author__ = 'pawsi_000'
 
 import random
 
+import matplotlib.pyplot as plt
 import numpy
 from deap import base
 from deap import creator
@@ -36,13 +37,16 @@ def genetic(problem: Problem) -> PartialMatch:
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     genetic_functions = ClientOrientedGenome(problem)
+    
+    population = 100
 
     toolbox.register("evaluate", genetic_functions.eval_individual)
-    toolbox.register("mate", genetic_functions.crossover)
-    toolbox.register("mutate", genetic_functions.mutate)
-    toolbox.register("select", tools.   selBest)
-
-    population = 100
+    #toolbox.register("mate", genetic_functions.crossover)
+    toolbox.register("mate", tools.cxOnePoint)
+    toolbox.register("mutate", genetic_functions.mutate, percentage_clients=0.05)
+    #toolbox.register("mutate", tools.mutUniformInt, low=0, up=(len(problem.warehouses)-1), indpb=0.05)
+    toolbox.register("select", tools.selTournament, tournsize = int(population*0.15))
+    #toolbox.register("select", tools.selBest)
 
     pop = toolbox.population(n=population)
     hof = tools.HallOfFame(1)
@@ -52,8 +56,32 @@ def genetic(problem: Problem) -> PartialMatch:
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
 
-    pop, log = algorithms.eaMuCommaLambda(pop, toolbox, mu=int(population*0.25), lambda_=int(population*0.5), cxpb=0.5, mutpb=0.2, ngen=1000, stats=stats, halloffame=hof,
+    pop, log = algorithms.eaMuCommaLambda(pop, toolbox, mu=int(population*0.3), lambda_=int(population*0.5), cxpb=0.1, mutpb=0.8, ngen=500, stats=stats, halloffame=hof,
                                    verbose=True)
+
+
+    gen = log.select("gen")
+    fit_mins = log.select("min")
+    size_avgs = log.select("avg")
+    #print (fit_mins, " ", size_avgs)
+    fig, ax1 = plt.subplots()
+    line1 = ax1.plot(gen, fit_mins, "b-", label="Minimum Fitness")
+    ax1.set_xlabel("Generation")    
+    ax1.set_ylabel("Fitness", color="b")
+    for tl in ax1.get_yticklabels():
+        tl.set_color("b")
+
+    ax2 = ax1.twinx()
+    line2 = ax2.plot(gen, size_avgs, "r-", label="Average Size")
+    ax2.set_ylabel("Size", color="r")
+    for tl in ax2.get_yticklabels():
+        tl.set_color("r")
+
+    lns = line1 + line2
+    labs = [l.get_label() for l in lns]
+    ax1.legend(lns, labs, loc="center right")
+
+    plt.show()
 
 
 

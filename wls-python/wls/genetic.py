@@ -19,9 +19,11 @@ class ClientOrientedGenome:
         else:
             return 1000000000.0 + cost.overload,
 
-    def mutate(self, individual):
-        index = random.randint(0, len(individual) - 1)
-        individual[index] = random.randint(0, len(self.problem.warehouses) - 1)
+    def mutate(self, individual, percentage_clients):
+        count = int(len(self.problem.clients)*percentage_clients)
+        for x in range(count):
+            index = random.randint(0, len(individual) - 1)
+            individual[index] = random.randint(0, len(self.problem.warehouses) - 1)
         return individual,
 
     def mutate_close_open(self, individual):
