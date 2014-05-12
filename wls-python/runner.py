@@ -22,7 +22,7 @@ if __name__ == '__main__':
     print(problem.clients[0])
     print(problem.warehouses[0])
     print(any_fit(problem).get_cost().total_cost)
- #   genetic(problem)
+    genetic(problem)
 
 
     fname = fileinput.filename().split('/')[-1]
