@@ -55,6 +55,29 @@ class Problem:
     def clients_by_demand_desc(self):
         return sorted(self.clients.values(), key=lambda c: c.dem, reverse=True)
 
+    def to_subproblem(self):
+        return SubProblem(self, list(range(0, len(self.clients))), list())
+
+
+class SubProblem:
+    def __init__(self, problem: Problem, major_clients: list, other_clients: list):
+        self.problem = problem
+        self.major_clients = major_clients
+        self.other_clients = other_clients
+        assert len(problem.clients) == len(major_clients) + len(other_clients)
+
+    def client(self, id):
+        return self.problem.clients[self.major_clients[id]]
+
+    def warehouse(self, id):
+        return self.problem.warehouses[id]
+
+    def warehouses_num(self):
+        return len(self.problem.warehouses)
+
+    def clients_num(self):
+        return len(self.major_clients)
+
 
 class PartialResult:
     def __init__(self, total_cost=0, is_feasible=True, overload=0):
@@ -74,12 +97,22 @@ class PartialMatch:
 
     #TODO: remove old assoc before new.
     def assoc(self, client: Client, warehouse: Warehouse):
+        if client in self.client_to_warehouse:
+            print("overriding client: ", client, warehouse, self.client_to_warehouse[client])
+            assert False
+
         self.client_to_warehouse[client] = warehouse
         if warehouse in self.warehouse_to_clients:
             self.warehouse_to_clients[warehouse].append(client)
         else:
             self.warehouse_to_clients[warehouse] = [client]
         self.free_cap[warehouse] = self.free_cap.get(warehouse, warehouse.cap) - client.dem
+
+
+    def update(self, clients_to_warehouse: dict):
+        for (c, w) in clients_to_warehouse.items():
+            self.assoc(c, w)
+
 
     def can_serve(self, current_warehouse: Warehouse, client: Client):
         return self.free_cap.get(current_warehouse, current_warehouse.cap) >= client.dem
@@ -98,6 +131,13 @@ class PartialMatch:
         for warehouse in self.warehouse_to_clients.keys():
             total_cost += warehouse.setup
         return PartialResult(total_cost, is_feasible, overload)
+
+    def validate(self, problem: Problem):
+        if len(problem.clients) != len(self.client_to_warehouse):
+            print(len(problem.clients), " != ", len(self.client_to_warehouse))
+        if not self.get_cost().is_feasible:
+            print("not feasible!")
+
 
     def __repr__(self):
         return str(self.client_to_warehouse)

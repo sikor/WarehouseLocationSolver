@@ -21,9 +21,13 @@ if __name__ == '__main__':
     print(problem)
     print(problem.clients[0])
     print(problem.warehouses[0])
-    print(any_fit(problem).get_cost().total_cost)
-    genetic(problem)
 
+
+    sol = hierarchical_genetic(problem, major_part=50, major_gen=100,  minor_pop=5, minor_gen=1)
+    # sol = genetic(problem)
+    sol.validate(problem)
+
+    print(sol.get_cost())
 
     fname = fileinput.filename().split('/')[-1]
     if fname in solutions:
