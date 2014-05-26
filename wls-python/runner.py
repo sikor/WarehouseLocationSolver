@@ -23,7 +23,7 @@ if __name__ == '__main__':
     print(problem.warehouses[0])
 
 
-    sol = hierarchical_genetic(problem, major_part=50, major_gen=100,  minor_pop=5, minor_gen=1)
+    sol = hierarchical_genetic(problem, major_part=50, major_gen=100,  minor_pop=0, minor_gen=0)
     # sol = genetic(problem)
     sol.validate(problem)
 
