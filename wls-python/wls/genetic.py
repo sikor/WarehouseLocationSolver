@@ -18,13 +18,20 @@ class Individual:
         for i in init:
             self.mapping.append(i)
 
-        self.others_match = None
+        self.parent_match = None
+        self.all_match = None
 
-    def set_other_match(self, other_match:PartialMatch):
-        self.others_match = other_match
+    def set_parent_match(self, other_match:PartialMatch):
+        self.parent_match = other_match
 
-    def get_other_match(self) -> PartialMatch:
-        return self.others_match
+    def get_parent_match(self) -> PartialMatch:
+        return self.parent_match
+
+    def set_all_match(self, all_match:PartialMatch):
+        self.all_match = all_match
+
+    def get_all_match(self) -> PartialMatch:
+        return self.all_match
 
 
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
@@ -33,30 +40,33 @@ creator.create("HIndividual", Individual, fitness=creator.FitnessMin)
 
 
 
+def individual_to_partial_match(individual:Individual, problem: SubProblem):
+    if individual.get_all_match() is not None:
+        return individual.get_all_match()
+
+    match = PartialMatch()
+    if individual.parent_match is not None:
+        match.update(individual.get_parent_match().client_to_warehouse)
+    for (c, w) in enumerate(individual.mapping):
+        match.assoc(problem.client(c), problem.warehouse(w))
+
+    return match
+
+def punish_infeasible(match:PartialMatch):
+    cost = match.get_cost()
+    if cost.is_feasible:
+        return cost.total_cost,
+    else:
+        return 1000000000.0 + cost.overload,
+
+
 class ClientOrientedGenome:
     def __init__(self, problem: SubProblem):
         self.problem = problem
 
     def eval_individual(self, individual:Individual):
-        match = self.individual_to_partial_match(individual)
-        cost = match.get_cost()
-        if cost.is_feasible:
-            return cost.total_cost,
-        else:
-            return 1000000000.0 + cost.overload,
-
-    def individual_to_partial_match(self, individual:Individual, match=None, problem=None):
-        if problem == None:
-            problem = self.problem
-        if match is None:
-            match = PartialMatch()
-
-        for (c, w) in enumerate(individual.mapping):
-            match.assoc(problem.client(c), problem.warehouse(w))
-
-        return match
-
-
+        match = individual_to_partial_match(individual, self.problem)
+        return punish_infeasible(match)
 
 
     def mutate(self, individual:Individual, percentage_clients):
@@ -90,14 +100,15 @@ class ClientOrientedGenome:
 
 class ClientOrientedGenomeWithParent(ClientOrientedGenome):
 
-    def __init__(self, problem: SubProblem, parent: Individual, parent_problem):
+    def __init__(self, problem: SubProblem, parent_match: PartialMatch, parent_problem: SubProblem):
         super().__init__(problem)
-        self.parent = parent
+        self.parent_match = parent_match
         self.parent_problem = parent_problem
 
-    def individual_to_partial_match(self, individual: Individual, match=None, problem=None):
-        merged = super().individual_to_partial_match(self.parent, match, self.parent_problem)
-        return super().individual_to_partial_match(individual, merged)
+    def eval_individual(self, individual: Individual):
+        individual.set_parent_match(self.parent_match)
+        match = individual_to_partial_match(individual, self.problem)
+        return punish_infeasible(match)
 
 
 
@@ -144,8 +155,8 @@ def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100
             tl.set_color("b")
 
         ax2 = ax1.twinx()
-        line2 = ax2.plot(gen, size_avgs, "r-", label="Average Size")
-        ax2.set_ylabel("Size", color="r")
+        line2 = ax2.plot(gen, size_avgs, "r-", label="Average")
+        ax2.set_ylabel("Average", color="r")
         for tl in ax2.get_yticklabels():
             tl.set_color("r")
 
@@ -156,5 +167,5 @@ def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100
         plt.show()
 
 
-    return genetic_functions.individual_to_partial_match(hof[0])
+    return individual_to_partial_match(hof[0], problem)
 
