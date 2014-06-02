@@ -13,6 +13,7 @@ class HierarchicalGenome(ClientOrientedGenome):
 
     def eval_individual(self, individual: Individual):
         individual.parent_match = None
+        individual.all_match = None
         match = individual_to_partial_match(individual, self.problem)
         cost = match.get_cost()
         if cost.is_feasible:
