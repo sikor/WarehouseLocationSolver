@@ -1,6 +1,7 @@
 __author__ = 'pawsi_000'
 
 import random
+import collections
 
 from wls.model import *
 
@@ -112,6 +113,20 @@ class ClientOrientedGenomeWithParent(ClientOrientedGenome):
 
 
 
+class GeneticInterruptor:
+
+	def __init__(self, max_decrease=3):
+		self.max_decrease = max_decrease
+		self.last_values = collections.dequeue()
+		
+	def __call__(self, data):
+		cur_min = min(data)
+		if len(self.last_values) == max_decrease:
+			self.last_values.popLeft()
+
+		self.last_values.append(cur_min)
+
+		
 def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100, gen=500, verbose=False, chart=False) -> PartialMatch:
     population = pop
     toolbox = base.Toolbox()
@@ -168,4 +183,54 @@ def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100
 
 
     return individual_to_partial_match(hof[0], problem)
+	
+	
+	
+def eaMuCommaLambdaQuickStop(population, toolbox, mu, lambda_, cxpb, mutpb, ngen,
+                    stats=None, halloffame=None, verbose=__debug__):
+    assert lambda_ >= mu, "lambda must be greater or equal to mu."
+
+    # Evaluate the individuals with an invalid fitness
+    invalid_ind = [ind for ind in population if not ind.fitness.valid]
+    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+    for ind, fit in zip(invalid_ind, fitnesses):
+        ind.fitness.values = fit
+
+    if halloffame is not None:
+        halloffame.update(population)
+
+    logbook = tools.Logbook()
+    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+
+    record = stats.compile(population) if stats is not None else {}
+    logbook.record(gen=0, nevals=len(invalid_ind), **record)
+    if verbose:
+        print(logbook.stream)
+
+    # Begin the generational process
+    for gen in range(1, ngen+1):
+        # Vary the population
+        offspring = varOr(population, toolbox, lambda_, cxpb, mutpb)
+
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+        # Update the hall of fame with the generated individuals
+        if halloffame is not None:
+            halloffame.update(offspring)
+
+        # Select the next generation population
+        population[:] = toolbox.select(offspring, mu)
+
+        # Update the statistics with the new population
+        record = stats.compile(population) if stats is not None else {}
+        logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+        if verbose:
+            print(logbook.stream)
+
+
+    return population, logbook
 
