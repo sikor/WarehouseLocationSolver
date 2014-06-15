@@ -18,14 +18,15 @@ def any_fit(problem: Problem) -> PartialMatch:
     return match
 
 
-def genetic(problem: Problem, gen=100) -> PartialMatch:
+def genetic(problem: Problem, gen=100, pop=100) -> PartialMatch:
     subproblem = problem.to_subproblem()
     genetic_functions = ClientOrientedGenome(subproblem)
-    return solver(subproblem, genetic_functions, pop=100, gen=gen, verbose=True, chart=True)
+    return solver(subproblem, genetic_functions, pop=pop, gen=gen, verbose=True, chart=True)
 
 
 
-def hierarchical_genetic(problem:Problem, major_pop=100, major_gen=20, minor_pop=100, minor_gen=3, major_part=None) -> PartialMatch:
+def hierarchical_genetic(problem:Problem, major_pop=100, major_gen=20, minor_pop=100, minor_gen=3, major_part=None,
+                         min_decrease=10, decrease_step=3) -> PartialMatch:
     if major_part is None:
         half = int(len(problem.clients)/2)
     else:
@@ -34,7 +35,7 @@ def hierarchical_genetic(problem:Problem, major_pop=100, major_gen=20, minor_pop
     minor = list(range(half, len(problem.clients)))
     print("major: ", major, " minor: ", minor)
     subproblem = SubProblem(problem, major, minor)
-    genetic_functions = HierarchicalGenome(subproblem, minor_pop, minor_gen)
+    genetic_functions = HierarchicalGenome(subproblem, minor_pop, minor_gen, min_decrease=min_decrease, decrease_step=decrease_step)
     return solver(subproblem, genetic_functions, major_pop, major_gen, verbose=True, chart=True)
 
 

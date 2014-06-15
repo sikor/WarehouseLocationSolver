@@ -13,6 +13,7 @@ from deap import algorithms
 import matplotlib.pyplot as plt
 import numpy
 
+
 class Individual:
     def __init__(self, init):
         self.mapping = list()
@@ -40,7 +41,6 @@ creator.create("Individual", list, fitness=creator.FitnessMin)
 creator.create("HIndividual", Individual, fitness=creator.FitnessMin)
 
 
-
 def individual_to_partial_match(individual:Individual, problem: SubProblem):
     if individual.get_all_match() is not None:
         return individual.get_all_match()
@@ -52,6 +52,7 @@ def individual_to_partial_match(individual:Individual, problem: SubProblem):
         match.assoc(problem.client(c), problem.warehouse(w))
 
     return match
+
 
 def punish_infeasible(match:PartialMatch):
     cost = match.get_cost()
@@ -71,7 +72,7 @@ class ClientOrientedGenome:
 
 
     def mutate(self, individual:Individual, percentage_clients):
-        count = int(self.problem.clients_num()*percentage_clients)
+        count = int(self.problem.clients_num() * percentage_clients)
         for x in range(count):
             index = random.randint(0, len(individual.mapping) - 1)
             individual.mapping[index] = random.randint(0, self.problem.warehouses_num() - 1)
@@ -100,7 +101,6 @@ class ClientOrientedGenome:
 
 
 class ClientOrientedGenomeWithParent(ClientOrientedGenome):
-
     def __init__(self, problem: SubProblem, parent_match: PartialMatch, parent_problem: SubProblem):
         super().__init__(problem)
         self.parent_match = parent_match
@@ -112,36 +112,48 @@ class ClientOrientedGenomeWithParent(ClientOrientedGenome):
         return punish_infeasible(match)
 
 
+class NotDecreasingInterrupt(Exception):
+    def __init__(self, min_decrease, decrease):
+        self.min_decrease = min_decrease
+        self.decrease = decrease
+
+    def __str__(self):
+        return "Not decreasing: %d < %d" % (self.decrease, self.min_decrease)
+
+
 
 class GeneticInterruptor:
+    def __init__(self, decrease_step, min_decrease):
+        self.max_decrease = decrease_step
+        self.last_values = collections.deque()
+        self.min_decrease = min_decrease
 
-	def __init__(self, max_decrease=3):
-		self.max_decrease = max_decrease
-		self.last_values = collections.dequeue()
-		
-	def __call__(self, data):
-		cur_min = min(data)
-		if len(self.last_values) == max_decrease:
-			self.last_values.popLeft()
+    def __call__(self, data):
+        cur_min = min(data)
+        if len(self.last_values) == self.max_decrease:
+            self.last_values.popleft()
 
-		self.last_values.append(cur_min)
+        self.last_values.append(cur_min[0])
+        decrease = self.last_values[0] - self.last_values[-1]
+        if len(self.last_values) == self.max_decrease and decrease < self.min_decrease:
+            raise NotDecreasingInterrupt(self.min_decrease, decrease)
+        return decrease
 
-		
-def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100, gen=500, verbose=False, chart=False) -> PartialMatch:
+
+def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100, gen=500, verbose=False,
+           chart=False, min_decrease=-1000000, decrease_step=2) -> PartialMatch:
     population = pop
     toolbox = base.Toolbox()
     toolbox.register("rand_warehouse", random.randint, 0, problem.warehouses_num() - 1)
     toolbox.register("individual", tools.initRepeat, creator.HIndividual, toolbox.rand_warehouse, problem.clients_num())
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-
-
     toolbox.register("evaluate", genetic_functions.eval_individual)
     toolbox.register("mate", genetic_functions.crossover)
     # toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", genetic_functions.mutate, percentage_clients=0.05)
     #toolbox.register("mutate", tools.mutUniformInt, low=0, up=(len(problem.warehouses)-1), indpb=0.05)
-    toolbox.register("select", tools.selTournament, tournsize = int(population*0.15))
+    toolbox.register("select", tools.selTournament, tournsize=int(population * 0.15))
     #toolbox.register("select", tools.selBest)
 
 
@@ -152,10 +164,14 @@ def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100
     stats.register("std", numpy.std)
     stats.register("min", numpy.min)
     stats.register("max", numpy.max)
+    stats.register("decrease", GeneticInterruptor(decrease_step=decrease_step, min_decrease=min_decrease))
 
-    pop, log = algorithms.eaMuCommaLambda(pop, toolbox, mu=int(population*0.3), lambda_=int(population*0.5), cxpb=0.1, mutpb=0.8, ngen=gen, stats=stats, halloffame=hof,
-                                   verbose=verbose)
-
+    try:
+        pop, log = algorithms.eaMuCommaLambda(pop, toolbox, mu=int(population * 0.3), lambda_=int(population * 0.5),
+                                              cxpb=0.1, mutpb=0.8, ngen=gen, stats=stats, halloffame=hof,
+                                              verbose=verbose)
+    except NotDecreasingInterrupt:
+        pass
 
     if chart:
         gen = log.select("gen")
@@ -181,56 +197,6 @@ def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100
 
         plt.show()
 
-
     return individual_to_partial_match(hof[0], problem)
-	
-	
-	
-def eaMuCommaLambdaQuickStop(population, toolbox, mu, lambda_, cxpb, mutpb, ngen,
-                    stats=None, halloffame=None, verbose=__debug__):
-    assert lambda_ >= mu, "lambda must be greater or equal to mu."
 
-    # Evaluate the individuals with an invalid fitness
-    invalid_ind = [ind for ind in population if not ind.fitness.valid]
-    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-    for ind, fit in zip(invalid_ind, fitnesses):
-        ind.fitness.values = fit
-
-    if halloffame is not None:
-        halloffame.update(population)
-
-    logbook = tools.Logbook()
-    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
-
-    record = stats.compile(population) if stats is not None else {}
-    logbook.record(gen=0, nevals=len(invalid_ind), **record)
-    if verbose:
-        print(logbook.stream)
-
-    # Begin the generational process
-    for gen in range(1, ngen+1):
-        # Vary the population
-        offspring = varOr(population, toolbox, lambda_, cxpb, mutpb)
-
-        # Evaluate the individuals with an invalid fitness
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
-
-        # Update the hall of fame with the generated individuals
-        if halloffame is not None:
-            halloffame.update(offspring)
-
-        # Select the next generation population
-        population[:] = toolbox.select(offspring, mu)
-
-        # Update the statistics with the new population
-        record = stats.compile(population) if stats is not None else {}
-        logbook.record(gen=gen, nevals=len(invalid_ind), **record)
-        if verbose:
-            print(logbook.stream)
-
-
-    return population, logbook
 
