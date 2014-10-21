@@ -5,7 +5,6 @@ import collections
 
 from wls.model import *
 
-import numpy
 from deap import base
 from deap import creator
 from deap import tools
@@ -99,6 +98,14 @@ class ClientOrientedGenome:
         self.copy_warehouse(ind2, ind1)
         return ind1, ind2
 
+    def crossover_one_point(self, ind1:Individual, ind2:Individual):
+        ch1, ch2 = tools.cxOnePoint(ind1.mapping, ind2.mapping)
+        ind1.mapping = ch1
+        ind2.mapping = ch2
+        return ind1, ind2
+
+
+
 
 class ClientOrientedGenomeWithParent(ClientOrientedGenome):
     def __init__(self, problem: SubProblem, parent_match: PartialMatch, parent_problem: SubProblem):
@@ -149,7 +156,8 @@ def solver(problem: SubProblem, genetic_functions: ClientOrientedGenome, pop=100
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     toolbox.register("evaluate", genetic_functions.eval_individual)
-    toolbox.register("mate", genetic_functions.crossover)
+    # toolbox.register("mate", genetic_functions.crossover)
+    toolbox.register("mate", genetic_functions.crossover_one_point)
     # toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", genetic_functions.mutate, percentage_clients=0.05)
     #toolbox.register("mutate", tools.mutUniformInt, low=0, up=(len(problem.warehouses)-1), indpb=0.05)

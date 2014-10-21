@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
 
     sol = hierarchical_genetic(problem, major_pop=20, major_part=40, major_gen=100,  minor_pop=10, minor_gen=50,
-                               min_decrease=10, decrease_step=4)
+                               min_decrease=1000, decrease_step=5)
     # sol = genetic(problem, gen=100, pop=20)
     sol.validate(problem)
 
